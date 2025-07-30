@@ -64,7 +64,7 @@ const storage=Multer.diskStorage({
     app.use("/Auth",require('./Route/Auth'))
     app.use("/Getbank",require('./Route/GetBanks'))
     app.use("/opay",require('./Route/get_acc'))
-    app.use("/test",require('./Route/test'))
+    app.use("/",require('./Route/test'))
     app.use("/Buy_data",require('./Route/Buy_data'))
     app.use("/Verify_smt_tv",require('./Route/verify_smt_tv'))
     app.use("/verify_meter",require('./Route/verify_meter'))
