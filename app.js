@@ -16,6 +16,7 @@ const request_id=require("./controllers/RequesID")
 console.log(os.type(),os.hostname(),os.version(),os.availableParallelism())
 
 connect();
+
 console.log(request_id())
 
 app.use(cors(opt))
@@ -44,7 +45,7 @@ const storage=Multer.diskStorage({
 
             console.log("connected to mongodDB")
         
-        const server=app.listen(Port,()=>{
+        const server=app.listen(Port,'0.0.0.0',()=>{
             console.log("running on " +Port)
         })
             const io=new Server(server,{
