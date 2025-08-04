@@ -11,10 +11,10 @@ const verify_meter_no=asynchandler(async(req,res)=>{
             type
         }
 
-        const response=await axios.post(' https://sandbox.vtpass.com/api/merchant-verify',data,{
+        const response=await axios.post('https://vtpass.com/api/merchant-verify',data,{
             headers:{
-                 'api-key':'9e2febd28928c3a1c47e92b7fd7f10e5',
-    "secret-key":"SK_68201794f3f530f9e72d6dbc5a9e5f6197a8342916f", 
+               'api-key': process.env.VTAPI_KEY,
+                "secret-key": process.env.VTSEC_KEY, 
                 'Content-Type':'application/json'
             }
         }) 

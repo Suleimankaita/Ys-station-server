@@ -38,14 +38,13 @@ const storage=Multer.diskStorage({
     }
 
 });
-
     const upload=Multer({storage:storage});
 
     mongoose.connection.once('open',()=>{
 
             console.log("connected to mongodDB")
         
-        const server=app.listen(Port,'0.0.0.0',()=>{
+        const server=app.listen(Port,()=>{
             console.log("running on " +Port)
         })
             const io=new Server(server,{
@@ -74,6 +73,8 @@ const storage=Multer.diskStorage({
     app.use("/jamb_verify",require('./Route/Jamb_verify'))
     app.use("/jamb_buy",require('./Route/jamb_buy'))
     app.use("/Weac",require('./Route/Waec'))
+    app.use("/getnotiify",require('./Route/getnotify'))
+    app.use("/getallUser",require('./Route/getAllUsers'))
     
     }
 )

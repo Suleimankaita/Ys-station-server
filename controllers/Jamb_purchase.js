@@ -1,6 +1,7 @@
 const asynchandler=require("express-async-handler");
 const axios=require("axios")
 const reqs=require("./RequesID")
+const User=require("../model/Rg")
 const verify_meter_no=asynchandler(async(req,res)=>{
     try{
         const {serviceID,billersCode,variation_code,phone,amount}=req.body;
@@ -16,11 +17,34 @@ const verify_meter_no=asynchandler(async(req,res)=>{
 
         const response=await axios.post(' https://sandbox.vtpass.com/api/pay',data,{
             headers:{
-                 'api-key':'9e2febd28928c3a1c47e92b7fd7f10e5',
-    "secret-key":"SK_68201794f3f530f9e72d6dbc5a9e5f6197a8342916f", 
+                'api-key': process.env.VTAPI_KEY,
+                "secret-key": process.env.VTSEC_KEY, 
                 'Content-Type':'application/json'
             }
         }) 
+
+        if(response.data){
+                      const found=await User.findByIdAndUpdate("686c3d0d1c26355eb87bae5e",{
+                    '$push':{
+                        transaction:{
+                            from:"suleiman",
+                            status:response.data?.content?.transactions?.status,
+                            product_name:response.data?.content.transactions?.product_name,
+                            commision:response?.data?.content?.transactions?.commision,
+                           date: new Date().toLocaleDateString().split("T")[0],
+                            phone:response.data?.content?.transactions?.phone,
+                            amount:Number(amount),
+                            refrenceId:reqs(),
+                            meter_token:response.data?.Token,
+                            weac_token:response.data.cards,
+                            type:post.data?.content?.transactions?.type,
+
+                        }
+                    }
+                })
+                
+                console.log(found)
+                }
         console.log(response.data)
         res.status(201).json({"message":response.data})
     }catch(err){

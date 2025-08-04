@@ -1,40 +1,74 @@
-const asynchandler=require("express-async-handler")
-const {Buffer}=require('buffer')
+const asynchandler = require("express-async-handler");
 const axios = require("axios");
-const reqs=require('./RequesID')
-const buy_airtime=asynchandler(async(req,res)=>{
+const reqs = require('./RequesID');
+const User = require("../model/Rg");
+
+const buy_airtime = asynchandler(async (req, res) => {
+    const { serviceID, amount, phone, id } = req.body;
     
-    const {serviceID,amount,phone}=req.body;
-    console.log(req.body)
-    try{
+    if (!serviceID || !amount || !phone) {
+        return res.status(400).json({ message: "Missing required fields: serviceID, amount, phone" });
+    }
 
-    const data = {
-    "request_id":reqs(),
-    serviceID: "mtn",
-    serviceID ,              // Use "mtn", "glo", "etisalat", or "airtel"
-    amount,
-    phone
-};
+    try {
+        const data = {
+            request_id: reqs(),
+            serviceID,
+            amount,
+            phone
+        };
 
-    const response=await axios.post('https://vtpass.com/api/pay',data,{
-        headers:{
-    "api-key": "a17489439ab7831a9d19f3f30bc44283", // Your static API key
-    "secret-key":"SK_8431c7f71e479a2ba11683e17c4f252cc90de46bd61", // Your generated secret key
-    "Content-Type": "application/json"
+        const response = await axios.post('https://sandbox.vtpass.com/api/pay', data, {
+            headers: {
+                'api-key': process.env.VTAPI_KEY,
+                "secret-key": process.env.VTSEC_KEY,
+                "Content-Type": "application/json"
+            }
+        });
+
+        if (response.data) {
+            // Update user with transaction details
+            const updatedUser = await User.findByIdAndUpdate(
+                id || "686c3d0d1c26355eb87bae5e", // Use provided ID or fallback to default
+                {
+                    $push: {
+                        transaction: {
+                            phone: phone,
+                            amount: amount,
+                            status: response?.data?.content?.transactions?.status,
+                            type: response?.data?.content?.transactions?.type,
+                            product_name: response?.data?.content?.transactions?.product_name,
+                            commission: Number(response?.data?.content?.transactions?.commission) || 0,
+                            billersCode: Number(response?.data?.content?.transactions?.billersCode),
+                            date: new Date().toLocaleDateString().split("T")[0],
+                            refrenceId:reqs()
+                        }
+                    }
+                },
+                { new: true }
+            ).exec();
+
+            if (!updatedUser) {
+                return res.status(404).json({ message: "User not found" });
+            }
+
+            return res.status(201).json({
+                message: "Transaction successful",
+                data: response.data,
+                user: updatedUser
+            });
         }
-    })
-    res.status(201).json({'message':response.data})
-    if(response.data){
-        console.log(response.data)
+    } catch (err) {
+        console.error("Error in buy_airtime:", err);
+        
+        // Handle axios errors specifically
+        const errorMessage = err.response?.data?.message || err.message;
+        
+        return res.status(err.response?.status || 500).json({
+            message: "Transaction failed",
+            error: errorMessage
+        });
     }
+});
 
-    }catch(err){
-        console.log(err)
-        res.status(400).json({'message':err.message})
-    }
-    
-})
-
-// 
-
-module.exports={buy_airtime}
+module.exports = { buy_airtime };

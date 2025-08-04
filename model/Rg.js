@@ -1,56 +1,69 @@
-const mongoose=require('mongoose');
+const mongoose = require('mongoose');
 
-const User_reg=new mongoose.Schema({
-    firstname:{
+const UserSchema = new mongoose.Schema({
+  firstname: {
+    type: String,
+    trim: true
+  },
+  lastname: {
+    type: String,
+    trim: true
+  },
+  username: {
+    type: String,
+    trim: true
+  },
+  password: {
+    type: String
+  },
+  transaction_pin: {
+    type: String
+  },
+  Phone_no: {
+    type: String
+  },
+  active: {
+    type: Boolean,
+    default: true
+  },
+  birth: {
+    type: String
+  },
+  gender: {
+    type: String
+  },
+  transaction: [
+    {
+      from: { type: String },
+      to: { type: String },
+      status: { type: String },
+      product_name: { type: String },
+      amount: { type: Number },
+      phone: { type: Number },
+      commision: { type: Number },
+      type: { type: String },
+      billercode: { type: String },
+      date:{type:String},
+      refrenceId:{
         type:String,
-        // required:true,
-    },
-    lastname:{
-        type:String,
-        // required:true,
-    },
-    username:{
-        type:String,
-        // required:true,
-    },
-    password:{
-        type:String,
-        // required:true,
-    },
-    transaction_pin:{
-        type:String,
-    },
-    Phone_no:{
-        type:String,
-    },
-    active:{
-        type:Boolean,
-        default:true
-    },
-        birth:{
-        type:String,
-        // required:true,
-    },
-        gender:{
-        type:String,
-        // required:true,
-    },
-    transaction:[{
-        from:String,
-        to:String,
-        status:String,
-        product_name:String,
-        
-              
-    }],
-    roles:{
-        type:String,
-        default:'user',
+        required:true
+      },
+      meter_token:{
+        type:String
+      },
+      weac_token:[{
+        Serial:{type:String},
+        Pin:{type:String}
+      }]
     }
-}
-,{
-    timestamps:true
-}
-)
+  ],
+  roles: {
+    type: String,
+    default: 'user'
+  }
+}, {
+  timestamps: true
+});
 
-module.exports=mongoose.model("User",User_reg)
+module.exports = mongoose.model("User", UserSchema);
+

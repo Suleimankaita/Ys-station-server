@@ -8,16 +8,16 @@ const {Buffer}=require('buffer')
 const test = async (req, res) => {
   const data = {
     "request_id": "id-" + Date.now(),
-    serviceID: "mtn",               // Use "mtn", "glo", "etisalat", or "airtel"
-    billersCode: "09169804387",     // For airtime, this is the phone number
-    variation_code: "",             // Leave blank for airtime
-    amount: 100,                   // Airtime amount in Naira
-    phone:Number("08134518265")            // Receiver's phone
+    serviceID: "mtn",               
+    billersCode: "09169804387",     
+    variation_code: "",             
+    amount: 100,                   
+    phone:Number("08134518265")            
   };
 
   const headers = {
-    "api-key": "9e2febd28928c3a1c47e92b7fd7f10e5", // Your static API key
-    "secret-key":"SK_68201794f3f530f9e72d6dbc5a9e5f6197a8342916f", // Your generated secret key
+    'api-key': process.env.VTAPI_KEY,
+    "secret-key": process.env.VTSEC_KEY, 
     "Content-Type": "application/json"
   };
 
