@@ -40,13 +40,13 @@ const UserSchema = new mongoose.Schema({
       product_name: { type: String },
       amount: { type: Number },
       phone: { type: Number },
+      time:{ type: String, default: new Date().toLocaleTimeString() },
       commision: { type: Number },
       type: { type: String },
       billercode: { type: String },
       date:{type:String},
       refrenceId:{
         type:String,
-        required:true
       },
       meter_token:{
         type:String
@@ -54,9 +54,11 @@ const UserSchema = new mongoose.Schema({
       weac_token:[{
         Serial:{type:String},
         Pin:{type:String}
-      }]
+      }],
+      
     }
   ],
+  wallet:[Number],
   roles: {
     type: String,
     default: 'user'

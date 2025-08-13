@@ -29,7 +29,7 @@ const Login=asynchandler(async(req,res)=>{
            
             process.env.ACCESS_TOKEN_SECRET,
             
-            {expiresIn:'10m'}
+            {expiresIn:'20m'}
         )
         const refrshtoken=jwt.sign(
             {'UserInfo':{

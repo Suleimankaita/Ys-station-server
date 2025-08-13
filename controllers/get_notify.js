@@ -3,8 +3,9 @@ const asyncHandler=require("express-async-handler")
 
 const getfind=asyncHandler(async(req,res)=>{
     try{
-        const {id}=req.body;
+        const {id}=req.query;
         const data=await User.findOne({_id:id}).exec();
+        console.log(data.length)
         if(data.length){
             const trs=data.transaction.map(res=>res)
             res.status(201).json({'message':trs})

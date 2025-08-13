@@ -5,8 +5,7 @@ const getalluser=asyncHandler(async(req,res)=>{
     try{
         const data=await User.find().select('-password').exec();
         if(data.length){
-            data
-            res.status(201).json(trs)
+            res.status(201).json(data)
         }else{
             res.status(400).json({'message':'empty Userlist'})
         }

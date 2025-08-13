@@ -315,6 +315,7 @@ const Regs = asynhandle(async (req, res) => {
                 transaction:[{
                     from,
                     to,
+                            seen:false,
                     product_name,
                     date:new Date().toISOString().split('T')[0],
                     refrenceId:Date.now(),

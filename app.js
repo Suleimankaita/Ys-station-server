@@ -73,8 +73,12 @@ const storage=Multer.diskStorage({
     app.use("/jamb_verify",require('./Route/Jamb_verify'))
     app.use("/jamb_buy",require('./Route/jamb_buy'))
     app.use("/Weac",require('./Route/Waec'))
-    app.use("/getnotiify",require('./Route/getnotify'))
+    app.use("/getnotify",require('./Route/getnotify'))
     app.use("/getallUser",require('./Route/getAllUsers'))
+    app.use("/get_datalist",require('./Route/get_data'))
+    app.use("/Add_wallet",require('./Route/add_wallet'))
+    app.use("/get_wallet",require('./Route/get_wallet'))
+    app.use("/Getbanks",require('./Route/Get_banks'))
     
     }
 )
