@@ -5,7 +5,6 @@ const Port = process.env.PORT || 4000;
 const { Server } = require("socket.io");
 const Multer = require("multer");
 const Path = require("path");
-const fs = require("fs");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const connect = require("./Config/connection");
@@ -16,7 +15,6 @@ const User = require("./model/Rg");
 const opt = require("./Config/cors");
 const os = require("os");
 const mongoose = require("mongoose");
-const request_id = require("./controllers/RequesID");
 
 // ---- Connect MongoDB ----
 connect();
@@ -45,61 +43,70 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ ---- Paystack Webhook (raw body required!) ----
+
+// ✅ ---- PAYSTACK WEBHOOK ----
+// Use raw body here — required for signature verification
 app.post(
   "/paystack/webhook",
-  bodyParser.raw({ type: "application/json" }), // <== Only raw for this route
+  bodyParser.raw({ type: "*/*" }),
   asyncHandler(async (req, res) => {
-    console.log("✅ Webhook route hit");
+    console.log("✅ Paystack Webhook triggered!");
 
+    // log entire body to debug
+    console.log("🧾 RAW BODY (buffer):", req.body);
     try {
-      const secret = process.env.PAYSTACK_KEY;
+      if (!req.body || !req.body.length) {
+        console.log("❌ Empty body received");
+        return res.sendStatus(200);
+      }
 
-      // Verify signature
+      const secret = process.env.PAYSTACK_KEY;
       const signature = req.headers["x-paystack-signature"];
+
       if (!signature) {
         console.log("❌ Missing Paystack signature");
         return res.sendStatus(400);
       }
 
+      // Verify signature
       const hash = crypto
         .createHmac("sha512", secret)
         .update(req.body)
         .digest("hex");
 
       if (hash !== signature) {
-        console.log("❌ Invalid Paystack signature");
+        console.log("❌ Invalid signature");
         return res.sendStatus(400);
       }
 
-      // Parse raw JSON string
+      // Parse the raw body buffer into JSON
       const event = JSON.parse(req.body.toString());
-
-      console.log("🔥 Paystack Event:", event.event);
+      console.log("🔥 Event Type:", event.event);
       console.log("📦 Event Data:", event.data);
 
       // ✅ Handle Transfer Success
       if (event.event === "transfer.success") {
         const { amount, recipient, reference } = event.data;
         const account_no = recipient?.metadata?.account_no;
-
-        console.log("💳 Crediting Account:", account_no);
+        console.log("💳 Account to credit:", account_no);
 
         if (!account_no) {
-          console.log("⚠️ Missing account number in metadata");
+          console.log("⚠️ No account number in metadata");
           return res.sendStatus(200);
         }
 
         const user = await User.findOne({ account_no });
         if (!user) {
-          console.log("⚠️ No user found for account", account_no);
+          console.log("⚠️ User not found for account:", account_no);
           return res.sendStatus(200);
         }
 
         const creditAmount = amount / 100;
-        if (!user.wallet || user.wallet.length === 0) user.wallet = [0];
-        user.wallet[0] += creditAmount;
 
+        // ✅ Push new wallet entry instead of replacing
+        user.wallet.push(creditAmount);
+
+        // ✅ Add transaction record
         user.transaction.push({
           from: "Paystack",
           to: user.account_name,
@@ -113,6 +120,7 @@ app.post(
         });
 
         await user.save();
+
         console.log(`✅ Wallet credited ₦${creditAmount} for ${user.account_name}`);
       }
 
@@ -124,10 +132,12 @@ app.post(
   })
 );
 
-// ✅ ---- Regular Parsers for other routes ----
+
+// ✅ ---- Normal parsers for other routes ----
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(Path.join(__dirname, "..", "public")));
+
 
 // ---- Multer Setup ----
 const storage = Multer.diskStorage({
@@ -140,7 +150,8 @@ const storage = Multer.diskStorage({
 });
 const upload = Multer({ storage });
 
-// ---- MongoDB Connection ----
+
+// ---- MongoDB Connected ----
 mongoose.connection.once("open", () => {
   console.log("✅ Connected to MongoDB");
 
@@ -148,7 +159,7 @@ mongoose.connection.once("open", () => {
     console.log(`🚀 Server running on port ${Port}`);
   });
 
-  // ---- Socket.io Setup ----
+  // ---- Socket.io ----
   const io = new Server(server, { cors: { origin: ["*"] } });
 
   app.use((req, res, next) => {
@@ -156,7 +167,7 @@ mongoose.connection.once("open", () => {
     next();
   });
 
-  // ---- Import Other Routes ----
+  // ---- Routes ----
   app.use("/Regs", require("./Route/User_con"));
   app.use("/Auth", require("./Route/Auth"));
   app.use("/Getbank", require("./Route/GetBanks"));
