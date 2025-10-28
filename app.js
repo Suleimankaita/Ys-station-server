@@ -18,13 +18,13 @@ const os = require("os");
 const mongoose = require("mongoose");
 const request_id = require("./controllers/RequesID");
 
+// ---- Connect to MongoDB ----
 connect();
 
-// ---- Utility: Get IPv4 addresses ----
+// ---- Log System Info ----
 function getIPv4() {
   const networkInterfaces = os.networkInterfaces();
   let ipv4s = [];
-
   Object.keys(networkInterfaces).forEach((ifname) => {
     networkInterfaces[ifname].forEach((iface) => {
       if (iface.family === "IPv4" && !iface.internal) {
@@ -32,42 +32,40 @@ function getIPv4() {
       }
     });
   });
-
   return ipv4s;
 }
-
 console.log("IPv4 addresses:", getIPv4());
 console.log(os.type(), os.hostname(), os.version(), os.availableParallelism());
 
-// ---- Middleware ----
+// ---- Global CORS & Cookies ----
 app.use(cors(opt));
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: false }));
-app.use(express.static(Path.join(__dirname, "..", "public")));
 
-// ---- Multer setup ----
-const storage = Multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, Path.join(__dirname, "..", "Public", "img"));
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + Path.extname(file.originalname));
-  },
+// ---- Log all incoming requests ----
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.url}`);
+  next();
 });
-const upload = Multer({ storage });
 
-// ---- Paystack Webhook (Raw Body Required) ----
+// ✅ ---- Paystack Webhook Route (MUST COME FIRST) ----
 app.post(
   "/paystack/webhook",
-  bodyParser.raw({ type: "*/*" }), // important! raw for signature verification
+  bodyParser.raw({ type: "*/*" }), // Paystack requires raw body for signature verification
   asyncHandler(async (req, res) => {
+    console.log("✅ Paystack webhook hit!");
+
     try {
+      if (!req.body || req.body.length === 0) {
+        console.log("❌ Empty body received");
+        return res.sendStatus(200);
+      }
+
       const secret = process.env.PAYSTACK_KEY;
 
-      // Verify Paystack signature
+      // ---- Verify Paystack signature ----
       const hash = crypto
         .createHmac("sha512", secret)
-        .update(req.body) // raw buffer
+        .update(req.body)
         .digest("hex");
 
       if (hash !== req.headers["x-paystack-signature"]) {
@@ -75,16 +73,18 @@ app.post(
         return res.status(400).json({ message: "Invalid signature" });
       }
 
-      // Convert raw buffer to JSON
+      // ---- Parse raw buffer to JSON ----
       const event = JSON.parse(req.body.toString());
 
       console.log("🔥 Paystack Event:", event.event);
       console.log("📦 Event Data:", event.data);
 
-      // Handle transfer success event
+      // ---- Handle Wallet Funding ----
       if (event.event === "transfer.success") {
         const { amount, recipient, reference } = event.data;
         const account_no = recipient?.metadata?.account_no;
+
+        console.log("💳 Transfer to account:", account_no);
 
         if (!account_no) {
           console.log("⚠️ No account number found in metadata");
@@ -127,27 +127,39 @@ app.post(
   })
 );
 
-// ---- Use express.json() for all other routes ----
+// ✅ ---- Regular Parsers for Other Routes ----
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(express.static(Path.join(__dirname, "..", "public")));
 
-// ---- Socket.io + Mongo Connection ----
+// ---- Multer Setup ----
+const storage = Multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, Path.join(__dirname, "..", "Public", "img"));
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + Path.extname(file.originalname));
+  },
+});
+const upload = Multer({ storage });
+
+// ---- MongoDB Connected ----
 mongoose.connection.once("open", () => {
-  console.log("connected to MongoDB");
+  console.log("✅ Connected to MongoDB");
 
   const server = app.listen(Port, () => {
-    console.log("Server running on port " + Port);
+    console.log(`🚀 Server running on port ${Port}`);
   });
 
-  const io = new Server(server, {
-    cors: { origin: ["*"] },
-  });
+  // ---- Socket.io Setup ----
+  const io = new Server(server, { cors: { origin: ["*"] } });
 
   app.use((req, res, next) => {
     req.io = io;
     next();
   });
 
-  // ---- Other routes ----
+  // ---- Routes ----
   app.use("/Regs", require("./Route/User_con"));
   app.use("/Auth", require("./Route/Auth"));
   app.use("/Getbank", require("./Route/GetBanks"));
