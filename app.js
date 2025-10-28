@@ -18,7 +18,7 @@ const os = require("os");
 const mongoose = require("mongoose");
 const request_id = require("./controllers/RequesID");
 
-// ---- Connect to MongoDB ----
+// ---- Connect MongoDB ----
 connect();
 
 // ---- Log System Info ----
@@ -27,9 +27,7 @@ function getIPv4() {
   let ipv4s = [];
   Object.keys(networkInterfaces).forEach((ifname) => {
     networkInterfaces[ifname].forEach((iface) => {
-      if (iface.family === "IPv4" && !iface.internal) {
-        ipv4s.push(iface.address);
-      }
+      if (iface.family === "IPv4" && !iface.internal) ipv4s.push(iface.address);
     });
   });
   return ipv4s;
@@ -41,64 +39,64 @@ console.log(os.type(), os.hostname(), os.version(), os.availableParallelism());
 app.use(cors(opt));
 app.use(cookieParser());
 
-// ---- Log all incoming requests ----
+// ---- Log all requests ----
 app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.url}`);
   next();
 });
 
-// ✅ ---- Paystack Webhook Route (MUST COME FIRST) ----
+// ✅ ---- Paystack Webhook (raw body required!) ----
 app.post(
   "/paystack/webhook",
-  bodyParser.raw({ type: "*/*" }), // Paystack requires raw body for signature verification
+  bodyParser.raw({ type: "application/json" }), // <== Only raw for this route
   asyncHandler(async (req, res) => {
-    console.log("✅ Paystack webhook hit!");
+    console.log("✅ Webhook route hit");
 
     try {
-      if (!req.body || req.body.length === 0) {
-        console.log("❌ Empty body received");
-        return res.sendStatus(200);
-      }
-
       const secret = process.env.PAYSTACK_KEY;
 
-      // ---- Verify Paystack signature ----
+      // Verify signature
+      const signature = req.headers["x-paystack-signature"];
+      if (!signature) {
+        console.log("❌ Missing Paystack signature");
+        return res.sendStatus(400);
+      }
+
       const hash = crypto
         .createHmac("sha512", secret)
         .update(req.body)
         .digest("hex");
 
-      if (hash !== req.headers["x-paystack-signature"]) {
+      if (hash !== signature) {
         console.log("❌ Invalid Paystack signature");
-        return res.status(400).json({ message: "Invalid signature" });
+        return res.sendStatus(400);
       }
 
-      // ---- Parse raw buffer to JSON ----
+      // Parse raw JSON string
       const event = JSON.parse(req.body.toString());
 
       console.log("🔥 Paystack Event:", event.event);
       console.log("📦 Event Data:", event.data);
 
-      // ---- Handle Wallet Funding ----
+      // ✅ Handle Transfer Success
       if (event.event === "transfer.success") {
         const { amount, recipient, reference } = event.data;
         const account_no = recipient?.metadata?.account_no;
 
-        console.log("💳 Transfer to account:", account_no);
+        console.log("💳 Crediting Account:", account_no);
 
         if (!account_no) {
-          console.log("⚠️ No account number found in metadata");
+          console.log("⚠️ Missing account number in metadata");
+          return res.sendStatus(200);
+        }
+
+        const user = await User.findOne({ account_no });
+        if (!user) {
+          console.log("⚠️ No user found for account", account_no);
           return res.sendStatus(200);
         }
 
         const creditAmount = amount / 100;
-        const user = await User.findOne({ account_no });
-
-        if (!user) {
-          console.log("⚠️ User not found for account", account_no);
-          return res.sendStatus(200);
-        }
-
         if (!user.wallet || user.wallet.length === 0) user.wallet = [0];
         user.wallet[0] += creditAmount;
 
@@ -115,19 +113,18 @@ app.post(
         });
 
         await user.save();
-
         console.log(`✅ Wallet credited ₦${creditAmount} for ${user.account_name}`);
       }
 
       res.sendStatus(200);
     } catch (err) {
-      console.error("Webhook Error:", err);
+      console.error("⚠️ Webhook Error:", err.message);
       res.sendStatus(500);
     }
   })
 );
 
-// ✅ ---- Regular Parsers for Other Routes ----
+// ✅ ---- Regular Parsers for other routes ----
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(Path.join(__dirname, "..", "public")));
@@ -143,7 +140,7 @@ const storage = Multer.diskStorage({
 });
 const upload = Multer({ storage });
 
-// ---- MongoDB Connected ----
+// ---- MongoDB Connection ----
 mongoose.connection.once("open", () => {
   console.log("✅ Connected to MongoDB");
 
@@ -159,7 +156,7 @@ mongoose.connection.once("open", () => {
     next();
   });
 
-  // ---- Routes ----
+  // ---- Import Other Routes ----
   app.use("/Regs", require("./Route/User_con"));
   app.use("/Auth", require("./Route/Auth"));
   app.use("/Getbank", require("./Route/GetBanks"));
