@@ -16,6 +16,7 @@ const buy_data=asynchandler(async(req,res)=>{
 
         }
          const wallets=await User.findOne({_id:id}).exec()
+        if(!wallets)return res.status(401).json({"message":"user not found"})
         
                 const reducess=wallets.wallet.reduce((sum,prv)=>sum+prv,0)
                 if(reducess<=Number(amount)) return res.status(400).json({'message':'Insufficient founds'}) 

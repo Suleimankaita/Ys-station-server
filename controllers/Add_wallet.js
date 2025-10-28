@@ -6,7 +6,7 @@ const add_wallet=asynchandler(async(req,res)=>{
     try{
 
         const {id,amount}=req.body;
-
+        console.log(req.body)
         if(!id) return res.status(400).json({'message':'UserID not found'});
         console.log(amount)
         const found=await User.findOne({_id:id}).exec()

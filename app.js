@@ -11,13 +11,30 @@ const cookie_perser=require('cookie-parser');
 const connect=require("./Config/connection");
 const opt=require("./Config/cors");
 const os=require('os')
+const paystackWebhook = require("./middleware/Paystack");
 const mongoose=require('mongoose'); 
 const request_id=require("./controllers/RequesID")
 console.log(os.type(),os.hostname(),os.version(),os.availableParallelism())
 
 connect();
 
-console.log(request_id())
+function getIPv4() {
+  const networkInterfaces = os.networkInterfaces();
+  let ipv4s = [];
+
+  Object.keys(networkInterfaces).forEach((ifname) => {
+    networkInterfaces[ifname].forEach((iface) => {
+      // Only consider IPv4 and non-internal (not 127.0.0.1)
+      if (iface.family === "IPv4" && !iface.internal) {
+        ipv4s.push(iface.address);
+      }
+    });
+  });
+
+  return ipv4s;
+}
+
+console.log("IPv4 addresses:", getIPv4());
 
 app.use(cors(opt))
 
@@ -59,10 +76,14 @@ const storage=Multer.diskStorage({
 
 
     // app.use("/",require('./Route/root'))
+    const router = express.Router();
     
+    // must use express.raw or express.json depending on setup
+    router.post("/paystack/webhook", express.json({ type: "*/*" }), paystackWebhook);
     app.use("/Regs",require('./Route/User_con'))
     app.use("/Auth",require('./Route/Auth'))
     app.use("/Getbank",require('./Route/GetBanks'))
+    app.use("/list_banks",require('./Route/List_banks'))
     app.use("/opay",require('./Route/get_acc'))
     app.use("/",require('./Route/test'))
     app.use("/Buy_data",require('./Route/Buy_data'))
@@ -79,6 +100,7 @@ const storage=Multer.diskStorage({
     app.use("/Add_wallet",require('./Route/add_wallet'))
     app.use("/get_wallet",require('./Route/get_wallet'))
     app.use("/Getbanks",require('./Route/Get_banks'))
+    app.use("/transfer",require('./Route/Transfer'))
     
     }
 )

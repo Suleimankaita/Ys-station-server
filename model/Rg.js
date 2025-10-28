@@ -5,7 +5,15 @@ const UserSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  account_no:{
+    type:Number,
+    required:true
+  },
   lastname: {
+    type: String,
+    trim: true
+  },
+  account_name: {
     type: String,
     trim: true
   },

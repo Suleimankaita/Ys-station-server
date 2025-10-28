@@ -45,11 +45,11 @@ const Get=asynhandle(async(req,res)=>{
 })
 
 const Regs = asynhandle(async (req, res) => {
-  const { firstname, lastname, Phone_no, password, gender, birth, username } = req.body;
+  const { email,firstname, lastname, Phone_no, password, gender, birth, username } = req.body;
   
+    console.log(req.body)
 
-
-  if (!firstname || !lastname || !Phone_no || !password || !gender || !birth || !username) {
+  if (!firstname||!email || !lastname || !Phone_no || !password || !gender || !birth || !username) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
@@ -62,18 +62,61 @@ const Regs = asynhandle(async (req, res) => {
   if (find_phone) {
     return res.status(409).json({ message: `${Phone_no} is already registered` });
   }
+  const email_found = await User_reg.findOne({ email }).exec();
+  if (email_found) {
+    console.log(email_found)
+    return res.status(409).json({ message: `${Phone_no} is already registered` });
+  }
+  const customer_vt = await axios.post('https://api.paystack.co/customer',{
+    first_name:firstname,
+    last_name:lastname,
+    phone:Phone_no,
+    email
 
-  const userCredit = await User_reg.create({
+},
+    {
+    headers: {
+        'Content-Type': 'application/json',
+        "Authorization": `Bearer sk_live_8881e5914c026b0962911655cdeb45fc8fb47bd5`,
+    }
+}
+)
+console.log('customer: ',customer_vt.data.data)
+if(customer_vt.data){
+console.log('codes: ',customer_vt.data.data.customer_code)
+
+    const crete_vt_account = await axios.post('https://api.paystack.co/dedicated_account',{
+        phone:Phone_no,
+        customer:customer_vt.data.data.customer_code,
+        email:email,
+        
+    },
+     {
+    headers: {
+        'Content-Type': 'application/json',
+        "Authorization": `Bearer sk_live_8881e5914c026b0962911655cdeb45fc8fb47bd5`,
+    }
+}
+)
+console.log('customer: ',crete_vt_account.data.data.account_number)
+
+    const userCredit = await User_reg.create({
     firstname,
     lastname,
     Phone_no,
     password,
     gender,
     birth,
+    account_no:Number(crete_vt_account.data.data.account_number),
+    account_name:crete_vt_account.data.data.account_name,
     username
   });
-
+  
   return res.status(201).json(userCredit);
+
+
+    
+}
 
  
     // try{

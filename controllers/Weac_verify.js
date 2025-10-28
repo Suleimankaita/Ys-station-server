@@ -11,7 +11,7 @@ const Waec=asynchandler(async(req,res)=>{
             serviceID,type,amount,phone,variation_code
         }
  const wallets=await User.findOne({_id:id}).exec()
-
+        if(!wallets)return res.status(401).json({"message":"user not found"})
         const reducess=wallets.wallet.reduce((sum,prv)=>sum+prv,0)
         if(reducess<=Number(amount)) return res.status(400).json({'message':'Insufficient founds'}) 
         const response=await axios.post('https://sandbox.vtpass.com/api/pay',data,{
