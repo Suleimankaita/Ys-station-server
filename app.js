@@ -9,6 +9,10 @@ const fs=require("fs")
 const cors=require('cors')
 const cookie_perser=require('cookie-parser');
 const connect=require("./Config/connection");
+const crypto = require("crypto");
+    const asyncHandler = require("express-async-handler");
+    const bodyParser = require("body-parser");
+    const User = require("./model/Rg");
 const opt=require("./Config/cors");
 const os=require('os')
 const paystackWebhook = require("./middleware/Paystack");
@@ -79,7 +83,83 @@ const storage=Multer.diskStorage({
     const router = express.Router();
     
     // must use express.raw or express.json depending on setup
-    router.post("/paystack/webhook", express.json({ type: "*/*" }), paystackWebhook);
+    // router.post("/paystack/webhook", express.json({ type: "*/*" }), paystackWebhook);
+    
+    
+    
+    
+    // ✅ Use raw body parser for webhook (not express.json)
+    router.post(
+      "/paystack/webhook",
+      bodyParser.raw({ type: "*/*" }), // must be raw
+      asyncHandler(async (req, res) => {
+        try {
+          const secret = process.env.PAYSTACK_SECRET_KEY;
+    
+          // ✅ Verify signature using raw body
+          const hash = crypto
+            .createHmac("sha512", secret)
+            .update(req.body) // raw buffer
+            .digest("hex");
+    
+          if (hash !== req.headers["x-paystack-signature"]) {
+            console.log("❌ Invalid Paystack signature");
+            return res.status(400).json({ message: "Invalid signature" });
+          }
+    
+          // ✅ Convert raw buffer to JSON
+          const event = JSON.parse(req.body.toString());
+    
+          console.log("🔥 Paystack Event:", event.event);
+          console.log("📦 Event Data:", event.data);
+    
+          if (event.event === "transfer.success") {
+            const { amount, recipient, reference } = event.data;
+            const account_no = recipient?.metadata?.account_no;
+    
+            if (!account_no) {
+              console.log("⚠️ No account number found in metadata");
+              return res.status(200).json({ success: true });
+            }
+    
+            const creditAmount = amount / 100;
+            const user = await User.findOne({ account_no });
+    
+            if (!user) {
+              console.log("⚠️ User not found for account", account_no);
+              return res.status(200).json({ success: true });
+            }
+    
+            if (!user.wallet || user.wallet.length === 0) user.wallet = [0];
+            user.wallet[0] += creditAmount;
+    
+            user.transaction.push({
+              from: "Paystack",
+              to: user.account_name,
+              status: "successful",
+              product_name: "Wallet Funding",
+              amount: creditAmount,
+              type: "credit",
+              date: new Date().toLocaleDateString(),
+              time: new Date().toLocaleTimeString(),
+              refrenceId: reference,
+            });
+    
+            await user.save();
+    
+            console.log(`✅ Wallet credited ₦${creditAmount} for ${user.account_name}`);
+          }
+    
+          res.sendStatus(200);
+        } catch (err) {
+          console.error("Webhook Error:", err);
+          res.sendStatus(500);
+        }
+      })
+    );
+    
+    
+    
     app.use("/Regs",require('./Route/User_con'))
     app.use("/Auth",require('./Route/Auth'))
     app.use("/Getbank",require('./Route/GetBanks'))
