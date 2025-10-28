@@ -94,7 +94,7 @@ const storage=Multer.diskStorage({
       bodyParser.raw({ type: "*/*" }), // must be raw
       asyncHandler(async (req, res) => {
         try {
-          const secret = process.env.PAYSTACK_SECRET_KEY;
+          const secret = process.env.PAYSTACK_KEY;
     
           // ✅ Verify signature using raw body
           const hash = crypto
