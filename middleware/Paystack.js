@@ -18,7 +18,7 @@ const paystackWebhook = asyncHandler(async (req, res) => {
 
   const event = req.body;
 
-  console.log("Paystack  "event)
+  console.log("Paystack  ",event)
   // ✅ Listen for successful incoming transfer (Paystack event)
   if (event.event === "transfer.success") {
     const { amount, recipient, reference } = event.data;
