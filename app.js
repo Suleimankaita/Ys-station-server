@@ -79,54 +79,60 @@ app.post(
         return res.sendStatus(400);
       }
 
-      // Parse the raw body buffer into JSON
-      const event = JSON.parse(req.body.toString());
-      console.log("🔥 Event Type:", event.event);
-      console.log("📦 Event Data:", event.data);
+// Parse the raw body buffer into JSON
+const event = JSON.parse(req.body.toString());
+console.log("🔥 Event Type:", event.event);
+console.log("📦 Event Data:", event.data);
 
-      // ✅ Handle Transfer Success
-      if (event.data.status ==='success') {
-        const { amount, recipient, reference , authorization,metadata} = event.data;
-        const account_no = recipient?.metadata?.account_no;
-        console.log("💳 Account to credit:", account_no);
+// ✅ Handle Transfer Success
+if (event.data.status === "success") {
+  const { amount, reference, authorization, metadata } = event.data;
 
-        if (!account_no) {
-          console.log("⚠️ No account number in metadata");
-          return res.sendStatus(200);
-        }
+  // ✅ Get receiver account number correctly for dedicated NUBAN
+  const account_no = metadata?.receiver_account_number || authorization?.receiver_bank_account_number;
+  console.log("💳 Account to credit:", account_no);
 
-        const user = await User.findOne({ account_no:metadata?. receiver_account_number }).exec();
-        if (!user) {
-          console.log("⚠️ User not found for account:", account_no);
-          return res.sendStatus(200);
-        }
+  if (!account_no) {
+    console.log("⚠️ No account number in metadata");
+    return res.sendStatus(200);
+  }
 
-        const creditAmount = amount / 100;
+  // ✅ Find the user in your database
+  const user = await User.findOne({ account_no }).exec();
+  if (!user) {
+    console.log("⚠️ User not found for account:", account_no);
+    return res.sendStatus(200);
+  }
 
-        // ✅ Push new wallet entry instead of replacing
-        user.wallet.push(creditAmount);
+  // ✅ Convert kobo to naira
+  const creditAmount = amount / 100;
 
-        // ✅ Add transaction record
-        user.transaction.push({
-          from: "Paystack",
-          to: user.account_name,
-          status: "successful",
-          product_name: "Wallet Funding",
-          sender_bank: authorization?.sender_bank,
-          sender_name: authorization?.sender_name,
-          amount: creditAmount,
-          type: "credit",
-          date: new Date().toLocaleDateString(),
-          time: new Date().toLocaleTimeString(),
-          refrenceId: reference,
-        });
+  // ✅ Push new wallet entry
+  user.wallet.push(creditAmount);
 
-        await user.save();
+  // ✅ Add transaction record
+  user.transaction.push({
+    from: authorization?.sender_name || "Unknown Sender",
+    to: user.account_name,
+    status: "successful",
+    product_name: "Wallet Funding",
+    sender_bank: authorization?.sender_bank,
+    sender_name: authorization?.sender_name,
+    amount: creditAmount,
+    type: "credit",
+    date: new Date().toLocaleDateString(),
+    time: new Date().toLocaleTimeString(),
+    referenceId: reference,
+  });
 
-        console.log(`✅ Wallet credited ₦${creditAmount} for ${user.account_name}`);
-      }
+  await user.save();
 
-      res.sendStatus(200);
+  console.log(`✅ Wallet credited ₦${creditAmount} for ${user.account_name}`);
+}
+
+    res.sendStatus(200);
+      
+
     } catch (err) {
       console.error("⚠️ Webhook Error:", err.message);
       res.sendStatus(500);
