@@ -14,8 +14,9 @@ const buy_tv = asynchandler(async (req, res) => {
 
     const post = await axios.post("https://vtpass.com/api/merchant-verify", data, {
       headers: {
-        Authorization: `Basic ${auth}`,
-        'Content-Type': 'application/json'
+                'api-key': process.env.VTAPI_KEY,
+                "secret-key": process.env.VTSEC_KEY, 
+                'Content-Type':'application/json'
       }
     });
 

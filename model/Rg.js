@@ -56,6 +56,12 @@ const UserSchema = new mongoose.Schema({
       refrenceId:{
         type:String,
       },
+      sender_bank:{
+        type:String,
+      },
+      sender_name:{
+        type:String,
+      },
       meter_token:{
         type:String
       },

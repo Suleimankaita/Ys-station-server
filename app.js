@@ -85,8 +85,8 @@ app.post(
       console.log("📦 Event Data:", event.data);
 
       // ✅ Handle Transfer Success
-      if (event.event === "transfer.success") {
-        const { amount, recipient, reference } = event.data;
+      if (event.data.status ==='success') {
+        const { amount, recipient, reference , authorization} = event.data;
         const account_no = recipient?.metadata?.account_no;
         console.log("💳 Account to credit:", account_no);
 
@@ -95,7 +95,7 @@ app.post(
           return res.sendStatus(200);
         }
 
-        const user = await User.findOne({ account_no });
+        const user = await User.findOne({ account_no }).exec();
         if (!user) {
           console.log("⚠️ User not found for account:", account_no);
           return res.sendStatus(200);
@@ -112,6 +112,8 @@ app.post(
           to: user.account_name,
           status: "successful",
           product_name: "Wallet Funding",
+          sender_bank: authorization?.sender_bank,
+          sender_name: authorization?.sender_name,
           amount: creditAmount,
           type: "credit",
           date: new Date().toLocaleDateString(),
